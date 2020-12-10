@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "juap"
+version = "0.1.0"
+description = "A JPEG-inspired method for generating universal adversarial perturbations"
+authors = [
+    "Kamala Varma <kvarma@umd.edu>",
+    "Michael Rosenberg <micro@cs.umd.edu>",
+    "Pedro Sandoval-Segura <psando@cs.umd.edu>"
+]
+license = "MIT/Apache-2.0"
+
+[tool.poetry.dependencies]
+matplotlib = "3.3"
+python = "3.8"
+tensorflow = "2.3"
+tensorflow_io = "0.16"
+
+[tool.poetry.dev-dependencies]
+
+[tool.black]
+line-length = 100
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
