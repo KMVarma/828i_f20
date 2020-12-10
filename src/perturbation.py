@@ -58,7 +58,7 @@ def adv_ycc_gradient(im, gt_class, classify_f):
 #     can be any value that divides the dimension of the input image (e.g., if the image is 224x224,
 #     blocks of size 28 work)
 # Output:
-#   An adversarial gradient of dimension [H, W, 3] with unbounded values in the frequency domain
+#   An l-infty normalized adversarial gradient of dimension [H, W, 3] with YCC values in [0, 1]
 def adv_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
     # Use cross entropy loss
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
