@@ -1,15 +1,18 @@
 import tensorflow as tf
 import tensorflow_io as tfio
-import matplotlib.pyplot as plt
 
-def preprocessed_rgb_to_ycbcr(rgb):
-    integer_rgb = tf.cast(127.5*(rgb + 1), tf.uint8)
-    integer_ycc = tfio.experimental.color.rgb_to_ycbcr(integer_rgb[0])
+# Converts RGB pixels in [0,1] to YCC pixels in [0,1]
+def rgb_to_ycc(rgb):
+    integer_rgb = tf.cast(tf.math.floor(255.0 * rgb), tf.uint8)
+    integer_ycc = tfio.experimental.color.rgb_to_ycbcr(integer_rgb)
     float_ycc = tf.cast(integer_ycc, tf.float32)
-    float_ycc = (float_ycc / 127.5)-1
-    float_ycc = tf.expand_dims(float_ycc, axis=0)
+    float_ycc = float_ycc / 255.0
+    float_ycc = tf.clip_by_value(float_ycc, 0, 1)
+
     return float_ycc
 
+
+# Takes YPbPr pixels in [0, 255] and maps them to RGB pixels in [0,1]
 def ypbpr_to_rgb(input):
     # inv of:
     # [[ 0.299   , 0.587   , 0.114   ],
@@ -23,18 +26,16 @@ def ypbpr_to_rgb(input):
         ],
         input.dtype,
     )
+
     return tf.tensordot(input, tf.transpose(kernel), axes=((-1,), (0,)))
 
-def preprocessed_ycbcr_to_rgb(ycc):
-    value = 127.5*(ycc + 1)
+
+# Converts a YCC-domain image with values in [0,1] to an RGB image with values in [0,1]
+def ycc_to_rgb(ycc):
+    value = 255.0 * ycc
     value = value - tf.constant([16, 128, 128], value.dtype)
     value = value / tf.constant([219, 224, 224], value.dtype)
     value = ypbpr_to_rgb(value)
-    value = 2 * value - 1
-    return value
+    value = tf.clip_by_value(value, 0, 1)
 
-def imshow(im):
-    # Convert [-1, 1] to [0, 1] range
-    transformed_im = preprocessed_ycbcr_to_rgb(im)[0]*0.5 + 0.5
-    transformed_im = tf.clip_by_value(transformed_im, 0, 1)
-    return plt.imshow(transformed_im)
+    return value
