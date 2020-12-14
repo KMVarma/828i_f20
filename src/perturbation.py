@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dct import blockwise_dct, blockwise_idct
-from obfuscation import obfuscate_freq_gradient, obfuscate_ycc_gradient
-from util import ycc_to_rgb
+from .dct import blockwise_dct, blockwise_idct
+from .obfuscation import obfuscate_freq_gradient, obfuscate_ycc_gradient
+from .util import ycc_to_rgb
 
 from math import inf
 
@@ -28,7 +28,7 @@ import tensorflow as tf
 #     of dim [H, W, 3] with RGB values in [0, 1]
 # Output:
 #   An l-infty normalized adversarial gradient of dimension [H, W, 3] with YCC values in [0, 1]
-def adv_ycc_gradient(im, gt_class, classify_f):
+def adv_chroma_gradient(im, gt_class, classify_f):
     # Use cross entropy loss
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
 
@@ -58,7 +58,7 @@ def adv_ycc_gradient(im, gt_class, classify_f):
 #     can be any value that divides the dimension of the input image (e.g., if the image is 224x224,
 #     blocks of size 28 work)
 # Output:
-#   An l-infty normalized adversarial gradient of dimension [H, W, 3] with YCC values in [0, 1]
+#   An adversarial gradient of dimension [H, W, 3] with unbounded values in the frequency domain
 def adv_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
     # Use cross entropy loss
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
