@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .perturbation import adv_chroma_gradient, adv_freq_gradient
+from .perturbation import adv_chroma_and_freq_gradient
 from .util import rgb_to_ycc, ycc_to_rgb
 from .dct import blockwise_dct, blockwise_idct
 
@@ -85,19 +85,18 @@ def run():
     plt.title("doggo DCT roundtrip")
     plt.show()
 
-    # Compute the chroma gradient
+    # Compute the gradients and plot them
+    chroma_grad, freq_grad = adv_chroma_and_freq_gradient(doggo_ycc, labrador_class, classify, 28)
+
     plt.figure()
-    grad = adv_chroma_gradient(doggo_ycc, labrador_class, classify)
-    show_gradient(grad)
-    plt.title(f"Chroma gradient (l2 norm {tf.norm(grad)})")
+    show_gradient(chroma_grad)
+    plt.title(f"Chroma gradient (l2 norm {tf.norm(chroma_grad)})")
     plt.show()
     plt.savefig("chroma_grad.png")
 
-    # Compute the frequency gradient
     plt.figure()
-    grad = adv_freq_gradient(doggo_ycc, labrador_class, classify, 28)
-    show_gradient(grad)
-    plt.title(f"Freq gradient (l2 norm {tf.norm(grad)})")
+    show_gradient(freq_grad)
+    plt.title(f"Freq gradient (l2 norm {tf.norm(freq_grad)})")
     plt.show()
     plt.savefig("freq_grad.png")
 
