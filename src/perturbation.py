@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .dct import blockwise_dct, blockwise_idct
-from .obfuscation import obfuscate_freq_gradient, obfuscate_ycc_gradient
+from .obfuscation import obfuscate_freq_gradient, obfuscate_chroma_gradient
 from .util import ycc_to_rgb
 
 from math import inf
@@ -54,9 +54,9 @@ def adv_chroma_and_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
     # Get the gradients of the loss w.r.t to the YCC input image
     chroma_grad = tape.gradient(loss, shifted_ycc_im).numpy()
     # Obfuscate the gradient so it's less perceptible to the human eye
-    chroma_grad = obfuscate_ycc_gradient(chroma_grad)
+    chroma_grad = obfuscate_chroma_gradient(chroma_grad)
     # Normalize the gradient wrt the l-infty norm
-    chroma_grad = chroma_grad / tf.norm(chroma_grad, ord=inf)
+    chroma_grad = tf.linalg.normalize(chroma_grad, ord=inf)[0]
 
     # Get the gradients of the loss w.r.t to the DCT of input image.
     freq_grad = tape.gradient(loss, imhat).numpy()
@@ -64,6 +64,6 @@ def adv_chroma_and_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
     obfuscated_freq_grad = obfuscate_freq_gradient(freq_grad, dct_blocksize)
     # Now convert the gradient back to color space and normalize it
     obfuscated_freq_grad = blockwise_idct(obfuscated_freq_grad, dct_blocksize)
-    obfuscated_freq_grad = obfuscated_freq_grad / tf.norm(obfuscated_freq_grad, ord=inf)
+    obfuscated_freq_grad = tf.linalg.normalize(obfuscated_freq_grad, ord=inf)[0]
 
     return chroma_grad, obfuscated_freq_grad

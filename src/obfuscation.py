@@ -4,9 +4,11 @@ from tensorflow.image import ResizeMethod
 # Takes a [H, W, 3] YCC image with values in [0,1] and outputs the "obfuscated" version of it. All
 # it actually does is clear the luma component, because change in luma is the most perceptible to
 # human eyes.
-def obfuscate_ycc_gradient(grad):
+def obfuscate_chroma_gradient(grad):
     # Luma component is the Y in YCC. Set it to 0
     grad[:, :, 0] = 0
+    # To max out the l-infty weight of the gradient, take the sign
+    grad = tf.sign(grad)
 
     return grad
 
@@ -72,6 +74,8 @@ def obfuscate_freq_gradient(gradient, dct_blocksize):
     # Combine the quantization matrices from all the channels
     q = tf.stack([tiled_q_y, tiled_q_chroma, tiled_q_chroma], axis=-1)
 
+
     # Use the quantization matrix as weights. The more human-perceptible frequencies have lower
-    # weights than the less human-perceptible frequencies.
+    # weights than the less human-perceptible frequencies. The sign() is to maximize the l-infty
+    # weight wrt the weight matrix
     return gradient * q
