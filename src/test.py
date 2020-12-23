@@ -1,14 +1,9 @@
 import tensorflow as tf
-from perturbation import adv_ycc_gradient, adv_freq_gradient
-from util import rgb_to_ycc, ycc_to_rgb
-from dct import blockwise_dct, blockwise_idct
+from .perturbation import adv_chroma_and_freq_gradient
+from .util import rgb_to_ycc, ycc_to_rgb
+from .dct import blockwise_dct, blockwise_idct
 
 ### MOBILENET SETUP ###
-
-# Set up MobileNet functions
-pretrained_model = tf.keras.applications.MobileNetV2(include_top=True, weights="imagenet")
-pretrained_model.trainable = False
-decode_predictions = tf.keras.applications.mobilenet_v2.decode_predictions
 
 # Helper function to preprocess the image so that it can be inputted in MobileNetV2
 def preprocess(image):
@@ -41,10 +36,16 @@ def get_doggo_pic():
     return image
 
 
+# ImageNet labels
+decode_predictions = tf.keras.applications.mobilenet_v2.decode_predictions
+
 # Helper function to extract labels from probability vector
 def get_imagenet_label(probs):
     return decode_predictions(probs, top=1)[0][0]
 
+
+pretrained_model = tf.keras.applications.MobileNetV2(include_top=True, weights="imagenet")
+pretrained_model.trainable = False
 
 # Classifies an image of dimension [H, W, 3] with RGB values in [0, 1]
 def classify(im):
@@ -75,29 +76,32 @@ def show_gradient(grad):
     plt.imshow(rgb)
 
 
-def run_gradient_test():
+def run():
     # Do a DCT round trip and make sure the output still looks like a dog
     doggohat = blockwise_dct(doggo_ycc * 255 - 128, 28)
     doggoroundtrip = (blockwise_idct(doggohat, 28) + 128) / 255
     plt.figure()
     plt.imshow(ycc_to_rgb(doggoroundtrip))
-    plt.title("Doggo DCT roundtrip")
+    plt.title("doggo DCT roundtrip")
     plt.show()
 
-    # Compute the YCC gradient
-    plt.figure()
-    grad = adv_ycc_gradient(doggo_ycc, labrador_class, classify)
-    show_gradient(grad)
-    plt.title(f"YCC gradient (l2 norm {tf.norm(grad)})")
-    plt.show()
+    # Compute the gradients and plot them
+    chroma_grad, freq_grad = adv_chroma_and_freq_gradient(doggo_ycc, labrador_class, classify, 28)
 
-    # Compute the frequency gradient
     plt.figure()
-    grad = adv_freq_gradient(doggo_ycc, labrador_class, classify, 28)
-    show_gradient(grad)
-    plt.title(f"Freq gradient (l2 norm {tf.norm(grad)})")
+    show_gradient(chroma_grad)
+    plt.title(f"Chroma gradient (l2 norm {tf.norm(chroma_grad)})")
     plt.show()
+    plt.savefig("chroma_grad.png")
+
+    plt.figure()
+    show_gradient(freq_grad)
+    plt.title(f"Freq gradient (l2 norm {tf.norm(freq_grad)})")
+    plt.show()
+    plt.savefig("freq_grad.png")
+
+    print("Saved figures")
 
 
 if __name__ == "__main__":
-    run_gradient_test()
+    run()

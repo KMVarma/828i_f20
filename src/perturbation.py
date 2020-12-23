@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dct import blockwise_dct, blockwise_idct
-from obfuscation import obfuscate_freq_gradient, obfuscate_ycc_gradient
-from util import ycc_to_rgb
+from .dct import blockwise_dct, blockwise_idct
+from .obfuscation import obfuscate_freq_gradient, obfuscate_chroma_gradient
+from .util import ycc_to_rgb
 
 from math import inf
 
@@ -27,39 +27,8 @@ import tensorflow as tf
 #   * classify_f: The classification function we're trying to fool. This function should take images
 #     of dim [H, W, 3] with RGB values in [0, 1]
 # Output:
-#   An l-infty normalized adversarial gradient of dimension [H, W, 3] with YCC values in [0, 1]
-def adv_ycc_gradient(im, gt_class, classify_f):
-    # Use cross entropy loss
-    loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
-
-    # Compute the gradient of the loss function on this input
-    with tf.GradientTape() as tape:
-        tape.watch(im)
-        rgb_im = ycc_to_rgb(im)
-        prediction = classify_f(rgb_im)
-        loss = loss_object([gt_class], prediction)
-
-    # Get the gradients of the loss w.r.t to the input image
-    grad = tape.gradient(loss, im).numpy()
-    # Obfuscate the gradient so it's less perceptible to the human eye
-    grad = obfuscate_ycc_gradient(grad)
-    # Normalize the gradient wrt the l-infty norm
-    grad = grad / tf.norm(grad, ord=inf)
-
-    return grad
-
-
-# Inputs:
-#   * im: An image of dimension [H, W, 3] with YCC values in [0, 1]
-#   * gt_class: The (integer) ground-truth class of the image being classified
-#   * classify_f: The classification function we're trying to fool. This function should take images
-#     of dim [H, W, 3] with RGB values in [0, 1]
-#   * dct_blocksize: The side length of the square subimages we run DCT on. JPEG standard is 8. This
-#     can be any value that divides the dimension of the input image (e.g., if the image is 224x224,
-#     blocks of size 28 work)
-# Output:
-#   An l-infty normalized adversarial gradient of dimension [H, W, 3] with YCC values in [0, 1]
-def adv_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
+#   * Two l-infty normalized adversarial gradients of dimension [H, W, 3] with YCC values in [0, 1]
+def adv_chroma_and_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
     # Use cross entropy loss
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
 
@@ -69,7 +38,7 @@ def adv_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
     imhat = blockwise_dct(scaled_input, dct_blocksize)
 
     # Compute the gradient of the loss function on this input
-    with tf.GradientTape() as tape:
+    with tf.GradientTape(persistent=True) as tape:
         tape.watch(imhat)
         # Convert the image back to YCC values in the range [-128, 127]
         ycc_im = blockwise_idct(imhat, dct_blocksize)
@@ -82,11 +51,19 @@ def adv_freq_gradient(im, gt_class, classify_f, dct_blocksize=8):
         prediction = classify_f(rgb_im)
         loss = loss_object([gt_class], prediction)
 
-    # Get the gradients of the loss w.r.t to the input image.
-    grad = tape.gradient(loss, imhat).numpy()
+    # Get the gradients of the loss w.r.t to the YCC input image
+    chroma_grad = tape.gradient(loss, shifted_ycc_im).numpy()
     # Obfuscate the gradient so it's less perceptible to the human eye
-    obfuscated_freq_grad = obfuscate_freq_gradient(grad, dct_blocksize)
+    chroma_grad = obfuscate_chroma_gradient(chroma_grad)
+    # Normalize the gradient wrt the l-infty norm
+    chroma_grad = tf.linalg.normalize(chroma_grad, ord=inf)[0]
+
+    # Get the gradients of the loss w.r.t to the DCT of input image.
+    freq_grad = tape.gradient(loss, imhat).numpy()
+    # Obfuscate the gradient so it's less perceptible to the human eye
+    obfuscated_freq_grad = obfuscate_freq_gradient(freq_grad, dct_blocksize)
     # Now convert the gradient back to color space and normalize it
-    obfuscated_ycc_grad = blockwise_idct(obfuscated_freq_grad, dct_blocksize)
-    obfuscated_ycc_grad = obfuscated_ycc_grad / tf.norm(obfuscated_ycc_grad, ord=inf)
-    return obfuscated_ycc_grad
+    obfuscated_freq_grad = blockwise_idct(obfuscated_freq_grad, dct_blocksize)
+    obfuscated_freq_grad = tf.linalg.normalize(obfuscated_freq_grad, ord=inf)[0]
+
+    return chroma_grad, obfuscated_freq_grad
